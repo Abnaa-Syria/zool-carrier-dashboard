@@ -24,7 +24,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { can, employee, logout } = useAuth();
   const sections = filterNavSections(navigationConfig, can);
   const initials = (employee?.displayName ?? '?')
-    .split(/s+/)
+    .split(/\s+/)
     .slice(0, 2)
     .map((w) => w.charAt(0))
     .join('');
