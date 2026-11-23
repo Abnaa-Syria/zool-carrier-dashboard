@@ -101,3 +101,19 @@ export const Panel: React.FC<{ children: React.ReactNode; className?: string }> 
 export const Icon: React.FC<{ name: string; className?: string }> = ({ name, className }) => (
   <span className={cn('material-symbols-outlined leading-none', className)} aria-hidden>{name}</span>
 );
+
+/** Label / value pair for detail pages (inside a `<dl>`). */
+export const DetailField: React.FC<{ label: string; children: React.ReactNode; className?: string }> = ({ label, children, className }) => (
+  <div className={cn('flex flex-col gap-0.5 min-w-0', className)}>
+    <dt className="text-xs text-on-surface-variant">{label}</dt>
+    <dd className="text-sm text-on-surface font-medium break-words">{children}</dd>
+  </div>
+);
+
+/** Section title row for detail pages. */
+export const SectionTitle: React.FC<{ title: string; children?: React.ReactNode }> = ({ title, children }) => (
+  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+    <h2 className="text-base font-bold">{title}</h2>
+    {children}
+  </div>
+);

@@ -100,7 +100,22 @@ export const TripDetailPage: React.FC = () => {
               )
             }
           />
-          <Info label="السائق" value={t.driver ? `${t.driver.displayName} (${t.driver.driverCode})` : 'غير معيّن'} />
+          <Info
+            label="السائق"
+            value={
+              t.driver ? (
+                <Link to={`/drivers/${t.driver.id}`} className="text-secondary">
+                  {t.driver.displayName} ({t.driver.driverCode})
+                </Link>
+              ) : (
+                'غير معيّن'
+              )
+            }
+          />
+          <Info
+            label="المسار"
+            value={t.route ? <Link to={`/routes/${t.route.id}`} className="text-secondary">{t.route.code ?? `${t.origin} ← ${t.destination}`}</Link> : '—'}
+          />
         </section>
       </div>
 
@@ -192,7 +207,10 @@ const ManifestSection: React.FC<{ tripId: string }> = ({ tripId }) => {
                 <div className="font-medium">{p.passenger.fullName}</div>
                 {p.passenger.phone && <div className="text-xs text-on-surface-variant font-mono" dir="ltr">{p.passenger.phone}</div>}
               </Td>
-              <Td className="font-mono text-xs" dir="ltr">{p.bookingRef}</Td>
+              <Td className="font-mono text-xs" dir="ltr">
+                <Link to={`/bookings/${encodeURIComponent(p.bookingRef)}`} className="text-secondary font-semibold">{p.bookingRef}</Link>
+                <div className="text-on-surface-variant">{p.ticketNumber}</div>
+              </Td>
               <Td className="text-xs">
                 {CHANNEL_LABEL[p.channel] ?? p.channel}
                 {p.soldBy && <div className="text-on-surface-variant">{p.soldBy}</div>}

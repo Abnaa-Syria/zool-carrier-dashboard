@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Link } from 'react-router-dom';
 import { Breadcrumbs } from '../../../app/shell/Breadcrumbs';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
@@ -85,7 +86,9 @@ export const DriversListPage: React.FC = () => {
               const expired = d.licenseExpiry !== null && d.licenseExpiry < today;
               return (
                 <tr key={d.id} className="border-t border-surface-container hover:bg-surface-container/50">
-                  <Td className="font-semibold">{d.displayName}</Td>
+                  <Td>
+                    <Link to={`/drivers/${d.id}`} className="font-semibold text-secondary">{d.displayName}</Link>
+                  </Td>
                   <Td className="font-mono text-xs" dir="ltr">{d.driverCode}</Td>
                   <Td className="font-mono text-xs" dir="ltr">{d.phone ?? '—'}</Td>
                   <Td className="text-xs">

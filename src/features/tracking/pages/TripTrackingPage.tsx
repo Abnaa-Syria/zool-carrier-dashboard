@@ -195,7 +195,11 @@ const TripView: React.FC<{ trip: TrackedTrip; fetching: boolean; updatedAt: numb
             </div>
             <div className="flex justify-between gap-2">
               <span className="text-on-surface-variant">السائق</span>
-              <span>{t.driver ? `${t.driver.displayName} (${t.driver.driverCode})` : 'غير معيّن'}</span>
+              {t.driver ? (
+                <Link to={`/drivers/${t.driver.id}`} className="font-semibold text-secondary">{t.driver.displayName} ({t.driver.driverCode})</Link>
+              ) : (
+                <span>غير معيّن</span>
+              )}
             </div>
           </section>
 

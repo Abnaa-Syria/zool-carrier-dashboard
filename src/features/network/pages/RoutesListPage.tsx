@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Link } from 'react-router-dom';
 import { Breadcrumbs } from '../../../app/shell/Breadcrumbs';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
@@ -7,7 +8,7 @@ import { PageHeader } from '../../../components/ui/PageHeader';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { errorMessage } from '../../../lib/api/errors';
 import { useAuth } from '../../auth/auth-context';
-import { Pager } from '../../../components/shared/common';
+import { ConfirmDialog, Pager } from '../../../components/shared/common';
 import { useRoutes, useStationOptions, useUpdateRoute, type RouteDto } from '../api';
 import { RouteFormModal } from '../components/RouteFormModal';
 import { selectClass, StationSelect } from '../components/fields';
@@ -22,6 +23,7 @@ export const RoutesListPage: React.FC = () => {
   const [active, setActive] = React.useState<'' | 'true' | 'false'>('');
   const [page, setPage] = React.useState(1);
   const [editing, setEditing] = React.useState<RouteDto | null | 'new'>(null);
+  const [toggling, setToggling] = React.useState<RouteDto | null>(null);
 
   const filterKey = `${stationId}|${active}`;
   const [prevKey, setPrevKey] = React.useState(filterKey);
@@ -57,8 +59,6 @@ export const RoutesListPage: React.FC = () => {
         {meta && <span className="text-xs text-on-surface-variant">{meta.total.toLocaleString('en-US')} مسار</span>}
       </div>
 
-      {toggle.isError && <p className="text-xs text-error">{errorMessage(toggle.error)}</p>}
-
       <section className="bg-surface-container-lowest border border-surface-container-high rounded-xl p-space-md">
         {routes.isLoading ? (
           <Skeleton className="h-48 rounded-lg" />
@@ -86,9 +86,11 @@ export const RoutesListPage: React.FC = () => {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id} className="border-t border-surface-container hover:bg-surface-container/50 align-top">
-                    <td className="py-2 px-2 font-mono text-xs" dir="ltr">{r.code ?? '—'}</td>
+                    <td className="py-2 px-2 font-mono text-xs" dir="ltr">
+                      <Link to={`/routes/${r.id}`} className="text-secondary font-semibold">{r.code ?? '—'}</Link>
+                    </td>
                     <td className="py-2 px-2">
-                      <div className="font-semibold">{r.originStation.city.nameAr} ← {r.destinationStation.city.nameAr}</div>
+                      <Link to={`/routes/${r.id}`} className="font-semibold hover:text-secondary">{r.originStation.city.nameAr} ← {r.destinationStation.city.nameAr}</Link>
                       <div className="text-xs text-on-surface-variant">{r.originStation.nameAr} ← {r.destinationStation.nameAr}</div>
                     </td>
                     <td className="py-2 px-2 tabular-nums">{formatDuration(r.durationMinutes)}</td>
@@ -101,12 +103,7 @@ export const RoutesListPage: React.FC = () => {
                     {canManage && (
                       <td className="py-2 px-2 text-left whitespace-nowrap">
                         <Button size="sm" variant="ghost" icon="edit" onClick={() => setEditing(r)}>تعديل</Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={toggle.isPending}
-                          onClick={() => toggle.mutate({ id: r.id, patch: { isActive: !r.isActive } })}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => setToggling(r)}>
                           {r.isActive ? 'تعطيل' : 'تفعيل'}
                         </Button>
                       </td>
@@ -119,6 +116,26 @@ export const RoutesListPage: React.FC = () => {
         )}
         <Pager meta={meta} busy={routes.isFetching} onPage={setPage} />
       </section>
+
+      <ConfirmDialog
+        open={toggling !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setToggling(null);
+            toggle.reset();
+          }
+        }}
+        title={toggling?.isActive ? `تعطيل المسار ${toggling.code ?? ''}؟` : `تفعيل المسار ${toggling?.code ?? ''}؟`}
+        confirmText={toggling?.isActive ? 'تعطيل' : 'تفعيل'}
+        danger={Boolean(toggling?.isActive)}
+        pending={toggle.isPending}
+        error={toggle.error}
+        onConfirm={() => toggling && toggle.mutate({ id: toggling.id, patch: { isActive: !toggling.isActive } }, { onSuccess: () => setToggling(null) })}
+      >
+        {toggling?.isActive
+          ? 'لن يظهر المسار في جدولة رحلات جديدة، والرحلات المجدولة عليه تبقى كما هي. يمكن إعادة تفعيله لاحقًا.'
+          : 'سيعود المسار متاحًا لجدولة رحلات جديدة.'}
+      </ConfirmDialog>
 
       {editing && <RouteFormModal route={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
     </div>

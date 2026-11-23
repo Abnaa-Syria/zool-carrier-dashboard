@@ -9,8 +9,17 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import { errorMessage } from '../../../lib/api/errors';
 import { formatDateTime } from '../../../lib/dates';
 import { useAuth } from '../../auth/auth-context';
-import { Panel } from '../../../components/shared/common';
-import { SERVICE_CLASS_LABEL, useVehicle, VEHICLE_STATUS_LABEL, VEHICLE_STATUS_VARIANT } from '../api';
+import { ConfirmDialog, Panel } from '../../../components/shared/common';
+import { RelatedTripsPanel } from '../../network/components/RelatedTripsPanel';
+import {
+  SERVICE_CLASS_LABEL,
+  useUpdateVehicle,
+  useVehicle,
+  VEHICLE_STATUS_LABEL,
+  VEHICLE_STATUS_TRANSITIONS,
+  VEHICLE_STATUS_VARIANT,
+  type VehicleStatus,
+} from '../api';
 import { SeatGrid, SeatLegend } from '../components/SeatGrid';
 import { layoutStats } from '../seatLayout';
 
@@ -21,12 +30,38 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
   </div>
 );
 
-/** `/vehicles/:id` — profile, amenities and the seat layout (read-only). */
+const STATUS_ACTION: Record<VehicleStatus, { label: string; icon: string; confirm: string; body: string; danger: boolean }> = {
+  ACTIVE: {
+    label: 'إعادة إلى الخدمة',
+    icon: 'check_circle',
+    confirm: 'إعادة التفعيل',
+    body: 'ستظهر الحافلة مجددًا في قوائم الجدولة وتغيير الحافلة.',
+    danger: false,
+  },
+  MAINTENANCE: {
+    label: 'إرسال للصيانة',
+    icon: 'build',
+    confirm: 'تحويل إلى الصيانة',
+    body: 'لن تظهر الحافلة في الجدولة الجديدة حتى تُعاد إلى الخدمة. الرحلات المجدولة عليها لا تتغيّر تلقائيًا — غيّر الحافلة من صفحة كل رحلة.',
+    danger: false,
+  },
+  RETIRED: {
+    label: 'إخراج من الخدمة',
+    icon: 'do_not_disturb_on',
+    confirm: 'إخراج من الخدمة',
+    body: 'هذا بديل الحذف: تبقى الحافلة وسجل رحلاتها محفوظًا لكنها لا تُستخدم في الجدولة. الرحلات المجدولة عليها لا تتغيّر تلقائيًا — غيّر الحافلة من صفحة كل رحلة. يمكن إعادتها للخدمة لاحقًا.',
+    danger: true,
+  },
+};
+
+/** `/vehicles/:id` — profile, amenities, the seat layout, status actions and the vehicle's trips. */
 export const FleetVehicleDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { can } = useAuth();
   const navigate = useNavigate();
   const vehicle = useVehicle(id);
+  const update = useUpdateVehicle(id ?? '');
+  const [target, setTarget] = React.useState<VehicleStatus | null>(null);
   const v = vehicle.data;
   const stats = v ? layoutStats(v.seatLayout) : null;
 
@@ -44,7 +79,18 @@ export const FleetVehicleDetailsPage: React.FC = () => {
             subtitle={v.model}
             className="mb-0"
             badge={<Badge variant={VEHICLE_STATUS_VARIANT[v.status]} dot>{VEHICLE_STATUS_LABEL[v.status]}</Badge>}
-            actions={can('carrier.fleet') ? <Button variant="outline" icon="edit" onClick={() => navigate(`/vehicles/${v.id}/edit`)}>تعديل</Button> : null}
+            actions={
+              can('carrier.fleet') ? (
+                <>
+                  <Button variant="outline" icon="edit" onClick={() => navigate(`/vehicles/${v.id}/edit`)}>تعديل</Button>
+                  {VEHICLE_STATUS_TRANSITIONS[v.status].map((s) => (
+                    <Button key={s} variant={STATUS_ACTION[s].danger ? 'danger' : 'outline'} icon={STATUS_ACTION[s].icon} onClick={() => setTarget(s)}>
+                      {STATUS_ACTION[s].label}
+                    </Button>
+                  ))}
+                </>
+              ) : null
+            }
           />
 
           <Panel>
@@ -85,6 +131,26 @@ export const FleetVehicleDetailsPage: React.FC = () => {
               <SeatGrid layout={v.seatLayout} />
             </div>
           </Panel>
+
+          <RelatedTripsPanel scope={{ vehicleId: v.id }} title="رحلات الحافلة" emptyText="لم تُجدول رحلات على هذه الحافلة بعد." />
+
+          <ConfirmDialog
+            open={target !== null}
+            onOpenChange={(o) => {
+              if (!o) {
+                setTarget(null);
+                update.reset();
+              }
+            }}
+            title={target ? `${STATUS_ACTION[target].label}: ${v.plateNumber}؟` : ''}
+            confirmText={target ? STATUS_ACTION[target].confirm : ''}
+            danger={target ? STATUS_ACTION[target].danger : false}
+            pending={update.isPending}
+            error={update.error}
+            onConfirm={() => target && update.mutate({ status: target }, { onSuccess: () => setTarget(null) })}
+          >
+            {target ? STATUS_ACTION[target].body : null}
+          </ConfirmDialog>
         </>
       ) : null}
     </div>

@@ -1,27 +1,18 @@
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { Breadcrumbs } from '../../app/shell/Breadcrumbs';
 import { Panel, TableShell, Td, Th } from '../../components/shared/common';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState, ErrorState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { api } from '../../lib/api/client';
 import { errorMessage } from '../../lib/api/errors';
 import { formatPercent } from '../../lib/money';
-
-/** GET /carrier/brokers row: a broker office assigned to sell this company's trips. */
-export type BrokerAssignment = {
-  office: { id: string; code: string; name: string; status: 'ACTIVE' | 'SUSPENDED' | string };
-  commissionPercent: number;
-};
+import { useBrokers } from './api';
 
 /** `/brokers` — broker offices selling this company and their commission (assigned by the platform). */
 export const BrokersPage: React.FC = () => {
-  const brokers = useQuery({
-    queryKey: ['carrier-brokers'],
-    queryFn: ({ signal }) => api.get<BrokerAssignment[]>('/carrier/brokers', undefined, signal).then((r) => r.data),
-  });
+  const brokers = useBrokers();
   const rows = brokers.data ?? [];
 
   return (
@@ -52,7 +43,9 @@ export const BrokersPage: React.FC = () => {
           >
             {rows.map((r) => (
               <tr key={r.office.id} className="border-t border-surface-container">
-                <Td className="font-semibold">{r.office.name}</Td>
+                <Td>
+                  <Link to={`/brokers/${r.office.id}`} className="font-semibold text-secondary">{r.office.name}</Link>
+                </Td>
                 <Td className="font-mono text-xs" dir="ltr">{r.office.code}</Td>
                 <Td className="tabular-nums">{formatPercent(r.commissionPercent)}</Td>
                 <Td>

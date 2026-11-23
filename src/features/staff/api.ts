@@ -35,3 +35,14 @@ export function changedFlags(current: StaffFlags, next: StaffFlags): Partial<Sta
   for (const k of Object.keys(next) as Array<keyof StaffFlags>) if (current[k] !== next[k]) out[k] = next[k];
   return out;
 }
+
+/** PATCH body for a role / permission change: only what differs; flags are sent for staff only (pure, unit-tested). */
+export function accessPatch(current: { role: 'MANAGER' | 'STAFF'; flags: StaffFlags }, role: 'MANAGER' | 'STAFF', flags: StaffFlags): StaffPatch {
+  const patch: StaffPatch = {};
+  if (role !== current.role) patch.role = role;
+  if (role === 'STAFF') {
+    const diff = changedFlags(current.flags, flags);
+    if (Object.keys(diff).length > 0) patch.flags = diff;
+  }
+  return patch;
+}

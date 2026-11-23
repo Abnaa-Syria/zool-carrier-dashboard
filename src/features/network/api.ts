@@ -240,6 +240,43 @@ export function useActiveRoutes(enabled = true) {
   });
 }
 
+/** GET /carrier/routes/:id (company-scoped). */
+export function useRoute(id: string | undefined) {
+  return useQuery({
+    queryKey: networkKeys.route(id ?? ''),
+    queryFn: ({ signal }) => api.get<RouteDto>(`/carrier/routes/${id}`, undefined, signal).then((r) => r.data),
+    enabled: Boolean(id),
+  });
+}
+
+export type RoutePoint = {
+  key: string;
+  kind: 'origin' | 'stop' | 'destination';
+  station: StationLite;
+  /** Minutes after departure (arrival at the point; 0 at the origin). */
+  arriveOffset: number;
+  /** Minutes after departure the bus leaves the point (null at the destination). */
+  departOffset: number | null;
+  dwellMinutes: number;
+};
+
+/** Origin → stops (by sequence) → destination with their offsets (pure, unit-tested). */
+export function routeTimeline(route: Pick<RouteDto, 'originStation' | 'destinationStation' | 'durationMinutes' | 'stops'>): RoutePoint[] {
+  const stops = [...route.stops].sort((a, b) => a.sequence - b.sequence);
+  return [
+    { key: 'origin', kind: 'origin', station: route.originStation, arriveOffset: 0, departOffset: 0, dwellMinutes: 0 },
+    ...stops.map((s) => ({
+      key: `s${s.sequence}`,
+      kind: 'stop' as const,
+      station: s.station,
+      arriveOffset: s.offsetMinutes,
+      departOffset: s.offsetMinutes + s.dwellMinutes,
+      dwellMinutes: s.dwellMinutes,
+    })),
+    { key: 'destination', kind: 'destination', station: route.destinationStation, arriveOffset: route.durationMinutes, departOffset: null, dwellMinutes: 0 },
+  ];
+}
+
 export function useCreateRoute() {
   const qc = useQueryClient();
   return useMutation({
@@ -252,7 +289,10 @@ export function useUpdateRoute() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: { id: string; patch: PatchRouteInput }) => api.patch<RouteDto>(`/carrier/routes/${input.id}`, input.patch).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: networkKeys.all }),
+    onSuccess: (data) => {
+      qc.setQueryData(networkKeys.route(data.id), data);
+      return qc.invalidateQueries({ queryKey: networkKeys.all });
+    },
   });
 }
 

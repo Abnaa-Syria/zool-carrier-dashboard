@@ -52,3 +52,28 @@ export function useBookings(filters: BookingFilters) {
     placeholderData: keepPreviousData,
   });
 }
+
+/** The booking whose id or reference equals `key` exactly (the list search is a `contains` match; pure, unit-tested). */
+export function findBooking<T extends Pick<CarrierBooking, 'id' | 'bookingRef'>>(rows: T[], key: string): T | null {
+  const k = key.trim();
+  return rows.find((b) => b.id === k) ?? rows.find((b) => b.bookingRef.toUpperCase() === k.toUpperCase()) ?? null;
+}
+
+/**
+ * One booking by id (GET /carrier/bookings/:id) or, for a booking reference, by searching
+ * GET /carrier/bookings?q=<key> and keeping the exact match.
+ */
+export function useBooking(key: string | undefined) {
+  return useQuery({
+    queryKey: ['carrier-bookings', 'one', key ?? ''],
+    queryFn: async ({ signal }) => {
+      if (!/^BK-/i.test(key!)) {
+        const direct = await api.get<CarrierBooking>(`/carrier/bookings/${encodeURIComponent(key!)}`, undefined, signal).catch(() => null);
+        if (direct) return direct.data;
+      }
+      const res = await api.get<CarrierBooking[]>('/carrier/bookings', { q: key, page: 1, pageSize: 50 }, signal);
+      return findBooking(res.data, key!);
+    },
+    enabled: Boolean(key),
+  });
+}

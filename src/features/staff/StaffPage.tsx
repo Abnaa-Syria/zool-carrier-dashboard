@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Link } from 'react-router-dom';
 import { Breadcrumbs } from '../../app/shell/Breadcrumbs';
 import { ConfirmDialog, Panel, TableShell, Td, Th } from '../../components/shared/common';
 import { Badge } from '../../components/ui/Badge';
@@ -62,8 +63,8 @@ export const StaffPage: React.FC = () => {
               const self = e.id === me?.id;
               return (
                 <tr key={e.id} className="border-t border-surface-container align-top">
-                  <Td className="font-semibold">
-                    {e.displayName}
+                  <Td>
+                    <Link to={`/staff/${e.id}`} className="font-semibold text-secondary">{e.displayName}</Link>
                     {self && <span className="text-xs font-normal text-on-surface-variant"> (أنت)</span>}
                   </Td>
                   <Td className="font-mono text-xs" dir="ltr">{e.phone ?? '—'}</Td>
@@ -136,7 +137,7 @@ export const StaffPage: React.FC = () => {
   );
 };
 
-const StaffModal: React.FC<{ employee: CarrierEmployee | null; isSelf: boolean; onClose: () => void; onSaved: (e: CarrierEmployee) => void }> = ({
+export const StaffModal: React.FC<{ employee: CarrierEmployee | null; isSelf: boolean; onClose: () => void; onSaved: (e: CarrierEmployee) => void }> = ({
   employee,
   isSelf,
   onClose,

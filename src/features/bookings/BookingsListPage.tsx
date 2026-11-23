@@ -1,10 +1,9 @@
 import * as React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Breadcrumbs } from '../../app/shell/Breadcrumbs';
 import { Pager, Panel, SELECT_CLASS, TableShell, Td, Th } from '../../components/shared/common';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../components/ui/Drawer';
 import { EmptyState, ErrorState } from '../../components/ui/EmptyState';
 import { SearchInput } from '../../components/ui/Input';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -14,8 +13,7 @@ import { formatDateTime } from '../../lib/dates';
 import { formatSdg } from '../../lib/money';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { usePageReset } from '../../lib/usePageReset';
-import { BOARDING_LABEL, BOARDING_VARIANT } from '../network/api';
-import { useBookings, type CarrierBooking } from './api';
+import { useBookings } from './api';
 import {
   BOOKING_STATUS_LABEL,
   BOOKING_STATUS_VARIANT,
@@ -27,7 +25,7 @@ import {
 
 const PAGE_SIZE = 20;
 
-/** `/bookings` — every booking on the company's trips (read-only). */
+/** `/bookings` — every booking on the company's trips (read-only); a row opens `/bookings/:id`. */
 export const BookingsListPage: React.FC = () => {
   const [search, setSearch] = React.useState('');
   const q = useDebouncedValue(search.trim(), 300);
@@ -35,7 +33,7 @@ export const BookingsListPage: React.FC = () => {
   const [from, setFrom] = React.useState('');
   const [to, setTo] = React.useState('');
   const [page, setPage] = usePageReset([q, status, from, to].join('|'));
-  const [selected, setSelected] = React.useState<CarrierBooking | null>(null);
+  const navigate = useNavigate();
 
   const bookings = useBookings({ page, pageSize: PAGE_SIZE, q: q || undefined, status: status || undefined, from: from || undefined, to: to || undefined });
   const rows = bookings.data?.data ?? [];
@@ -100,11 +98,11 @@ export const BookingsListPage: React.FC = () => {
             }
           >
             {rows.map((b) => (
-              <tr key={b.id} className="border-t border-surface-container hover:bg-surface-container/50 cursor-pointer" onClick={() => setSelected(b)}>
+              <tr key={b.id} className="border-t border-surface-container hover:bg-surface-container/50 cursor-pointer" onClick={() => navigate(`/bookings/${b.id}`)}>
                 <Td>
-                  <button type="button" className="font-mono text-xs text-secondary font-semibold" dir="ltr" onClick={() => setSelected(b)}>
+                  <Link to={`/bookings/${b.id}`} className="font-mono text-xs text-secondary font-semibold" dir="ltr" onClick={(e) => e.stopPropagation()}>
                     {b.bookingRef}
-                  </button>
+                  </Link>
                 </Td>
                 <Td>
                   <div>{b.trip.origin} ← {b.trip.destination}</div>
@@ -133,71 +131,6 @@ export const BookingsListPage: React.FC = () => {
         )}
         <Pager meta={meta} busy={bookings.isFetching} onPage={setPage} />
       </Panel>
-
-      <BookingDrawer booking={selected} onClose={() => setSelected(null)} />
     </div>
   );
 };
-
-const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="flex justify-between gap-3 text-sm py-1">
-    <span className="text-on-surface-variant">{label}</span>
-    <span className="font-medium text-left">{children}</span>
-  </div>
-);
-
-const BookingDrawer: React.FC<{ booking: CarrierBooking | null; onClose: () => void }> = ({ booking: b, onClose }) => (
-  <Drawer open={b !== null} onOpenChange={(o) => !o && onClose()}>
-    <DrawerContent side="left">
-      {b && (
-        <div className="flex flex-col gap-4">
-          <DrawerHeader>
-            <DrawerTitle>
-              حجز <span dir="ltr" className="font-mono">{b.bookingRef}</span>
-            </DrawerTitle>
-            <DrawerDescription>
-              <Badge variant={BOOKING_STATUS_VARIANT[b.status]} dot>{BOOKING_STATUS_LABEL[b.status]}</Badge>
-            </DrawerDescription>
-          </DrawerHeader>
-
-          <section>
-            <Row label="الرحلة">
-              <Link to={`/trips/${b.trip.id}`} className="text-secondary" onClick={onClose}>
-                {b.trip.origin} ← {b.trip.destination}
-              </Link>
-            </Row>
-            <Row label="المغادرة">{formatDateTime(b.trip.departureAt)}</Row>
-            <Row label="القناة">{CHANNEL_LABEL[b.channel]}{b.office ? ` — ${b.office.name}` : ''}</Row>
-            {b.employee && <Row label="الموظف البائع">{b.employee.displayName}</Row>}
-            {b.customer && <Row label="العميل">{b.customer.displayName ?? '—'} <span dir="ltr" className="font-mono text-xs">{b.customer.phone}</span></Row>}
-            <Row label="الدفع">{PAYMENT_METHOD_LABEL[b.paymentMethod]} — {PAYMENT_STATUS_LABEL[b.paymentStatus] ?? b.paymentStatus}</Row>
-            <Row label="المبلغ">{formatSdg(b.totalAmountMinor)}</Row>
-            {b.commissionAmountMinor > 0 && <Row label="عمولة الوكيل">{formatSdg(b.commissionAmountMinor)}</Row>}
-            <Row label="التأكيد">{formatDateTime(b.confirmedAt)}</Row>
-            {b.cancelledAt && <Row label="الإلغاء">{formatDateTime(b.cancelledAt)}</Row>}
-            {b.cancelReason && <Row label="سبب الإلغاء">{b.cancelReason}</Row>}
-            {b.leg && <Row label="رحلة ذهاب وعودة">{b.leg === 'OUTBOUND' ? 'الذهاب' : 'العودة'}</Row>}
-            {b.changeCount > 0 && <Row label="عدد التعديلات">{b.changeCount}</Row>}
-          </section>
-
-          <section>
-            <h3 className="font-bold text-sm mb-2">التذاكر ({b.tickets.length})</h3>
-            <ul className="space-y-2">
-              {b.tickets.map((t) => (
-                <li key={t.id} className="rounded-lg border border-surface-container-high p-2 text-sm flex items-center justify-between gap-2">
-                  <div>
-                    <div className="font-medium">{t.passengerName}</div>
-                    <div className="text-xs text-on-surface-variant">
-                      مقعد <strong>{t.seatLabel}</strong> · <span dir="ltr" className="font-mono">{t.ticketNumber}</span>
-                    </div>
-                  </div>
-                  <Badge size="sm" variant={BOARDING_VARIANT[t.boardingStatus]}>{BOARDING_LABEL[t.boardingStatus]}</Badge>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
-      )}
-    </DrawerContent>
-  </Drawer>
-);
